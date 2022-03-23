@@ -48,7 +48,11 @@ abstract contract WrappedConvexPosition is
     /// @dev Converts between an internal balance representation
     ///      and underlying tokens.
     /// @return The amount of underlying the input is worth
-    function _underlying(uint256) internal view virtual returns (uint256);
+    function _sharesToUnderlying(uint256)
+        internal
+        view
+        virtual
+        returns (uint256);
 
     /// @notice Get the underlying balance of an address
     /// @param _who The address to query
@@ -59,7 +63,7 @@ abstract contract WrappedConvexPosition is
         override
         returns (uint256)
     {
-        return _underlying(balanceOf[_who]);
+        return _sharesToUnderlying(balanceOf[_who]);
     }
 
     /// @notice Returns the amount of the underlying asset a certain amount of shares is worth
@@ -71,7 +75,7 @@ abstract contract WrappedConvexPosition is
         override
         returns (uint256)
     {
-        return _underlying(_shares);
+        return _sharesToUnderlying(_shares);
     }
 
     /// @notice Entry point to deposit tokens into the Wrapped Position contract
@@ -146,7 +150,7 @@ abstract contract WrappedConvexPosition is
     ) external override returns (uint256, uint256) {
         // First we load the number of underlying per unit of Wrapped Position token
         uint256 oneUnit = 10**decimals;
-        uint256 underlyingPerShare = _underlying(oneUnit);
+        uint256 underlyingPerShare = _sharesToUnderlying(oneUnit);
         // Then we calculate the number of shares we need
         uint256 shares = (_amount * oneUnit) / underlyingPerShare;
         // Using this we call the normal withdraw function

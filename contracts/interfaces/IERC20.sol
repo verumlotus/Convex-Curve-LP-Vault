@@ -26,8 +26,6 @@ interface IERC20 {
         uint256 amount
     ) external returns (bool);
 
-    function totalSupply() external returns (uint256);
-
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(
         address indexed owner,
