@@ -184,6 +184,7 @@ abstract contract WrappedConvexPosition is
         );
 
         // Burn users shares
+        // Note: we must burn shares after calling _withdraw to accurately determine the amount of underlying out
         _burn(msg.sender, _shares);
 
         // We revert if this call doesn't produce enough underlying

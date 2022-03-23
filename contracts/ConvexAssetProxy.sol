@@ -30,9 +30,6 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /// @notice the pool id (in Convex's system) of the underlying token
     uint256 public immutable pid;
 
-    /// @notice the number of decimals in our vault
-    uint256 public immutable vaultDecimals;
-
     /// @notice Address of the deposit token 'reciepts' that are given to us
     /// by the booster contract when we deposit the underlying token
     IERC20 public immutable convexDepositToken;
@@ -151,27 +148,29 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         return amountUnderlyingToWithdraw;
     }
 
-    /// @notice Get the underlying amount of tokens per shares given
-    /// @param _amount The amount of shares you want to know the value of
-    /// @return Value of shares in underlying token
+    /**
+     * @notice Get the underlying amount of tokens per shares given
+     * @param _amount The amount of shares you want to know the value of
+     * @return Value of shares in underlying token
+     */
     function _sharesToUnderlying(uint256 _amount)
         internal
         view
         override
         returns (uint256)
     {
-        // We may have to convert before using the vault price per share
-        if (conversionRate != 0) {
-            // Imitate the _withdraw logic and convert this amount to yearn vault2 shares
-            _amount = (_amount * 1e18) / conversionRate;
-        }
-        return (_amount * _pricePerShare()) / (10**vaultDecimals);
+        return (_amount * _pricePerShare()) / (10**decimals());
     }
 
-    /// @notice Get the price per share in the vault
-    /// @return The price per share in units of underlying;
+    /**
+     * @notice Get the amount of underlying per share in the vault
+     * @return returns the amount of underlying tokens per share
+     */
     function _pricePerShare() internal view returns (uint256) {
-        return vault.pricePerShare();
+        // Underlying per share = (1 / total Shares) * total amount of underlying controlled
+        return
+            ((10**decimals()) * rewardsContract.balanceOf(address(this))) /
+            totalSupply();
     }
 
     /// @notice Function to reset approvals for the proxy
