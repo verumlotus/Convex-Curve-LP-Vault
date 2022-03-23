@@ -1,7 +1,7 @@
 pragma solidity ^0.8.0;
 
 // Convex BaseRewardsPool.sol interface
-interface IConvexRewards {
+interface IConvexBaseRewardPool {
     //get balance of an address
     function balanceOf(address _account) external returns (uint256);
 
