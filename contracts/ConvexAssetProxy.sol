@@ -74,11 +74,11 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Set the pool id
         pid = _pid;
         // Approve the booster so it can pull tokens from this address
-        _token.approve(booster, type(uint256).max);
+        _token.approve(address(booster), type(uint256).max);
 
         // We want our shares decimals to be the same as the convex deposit token decimals
         require(
-            decimals() == IERC20(convexDepositToken).decimals(),
+            decimals == IERC20(_convexDepositToken).decimals(),
             "Inconsistent decimals"
         );
     }
@@ -104,7 +104,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Note that convex deposit receipt tokens and underlying are in a 1:1 relationship
         // i.e for every 1 underlying we deposit we'd be credited with 1 deposit receipt token
         // So we can calculate the total amount deposited in underlying by querying for our balance of deposit receipt token
-        uint256 sharesToMint = (amount * totalSupply()) /
+        uint256 sharesToMint = (amount * totalSupply) /
             rewardsContract.balanceOf(address(this));
 
         // Deposit underlying tokens
@@ -127,14 +127,9 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         address _destination,
         uint256
     ) internal override notPaused returns (uint256) {
-        // Withdraws shares from the vault. Max loss is set at 100% as
-        // the minimum output value is enforced by the calling
-        // function in the WrappedPosition contract.
-        uint256 amountReceived = vault.withdraw(_shares, _destination, 10000);
-
         // Amount underlying token out = (shares to burn / total shares) * total underlying token controlled by this contract
         uint256 underlyingOut = (_shares *
-            rewardsContract.balanceOf(address(this))) / totalSupply();
+            rewardsContract.balanceOf(address(this))) / totalSupply;
 
         // We need to withdraw from the rewards contract & send to the destination
         // Boolean indicates that we don't want to collect rewards (this saves the user gas)
@@ -159,7 +154,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         override
         returns (uint256)
     {
-        return (_amount * _pricePerShare()) / (10**decimals());
+        return (_amount * _pricePerShare()) / (10**decimals);
     }
 
     /**
@@ -169,58 +164,24 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     function _pricePerShare() internal view returns (uint256) {
         // Underlying per share = (1 / total Shares) * total amount of underlying controlled
         return
-            ((10**decimals()) * rewardsContract.balanceOf(address(this))) /
-            totalSupply();
+            ((10**decimals) * rewardsContract.balanceOf(address(this))) /
+            totalSupply;
     }
 
-    /// @notice Function to reset approvals for the proxy
+    /**
+     * @notice Reset approval for booster contract
+     */
     function approve() external {
-        token.approve(address(vault), 0);
-        token.approve(address(vault), type(uint256).max);
+        token.approve(address(booster), 0);
+        token.approve(address(booster), type(uint256).max);
     }
 
-    /// @notice Allows an authorized address or the owner to pause this contract
-    /// @param pauseStatus true for paused, false for not paused
-    /// @dev the caller must be authorized
+    /**
+     * @notice Allows an authorized address or the owner to pause this contract
+     * @param pauseStatus true for paused, false for not paused
+     * @dev the caller must be authorized
+     */
     function pause(bool pauseStatus) external onlyAuthorized {
         paused = pauseStatus;
-    }
-
-    /// @notice Function to transition between two yearn vaults
-    /// @param newVault The address of the new vault
-    /// @param minOutputShares The min of the new yearn vault's shares the wp will receive
-    /// @dev WARNING - This function has the capacity to steal all user funds from this
-    ///                contract and so it should be ensured that the owner is a high quorum
-    ///                governance vote through the time lock.
-    function transition(IYearnVault newVault, uint256 minOutputShares)
-        external
-        onlyOwner
-    {
-        // Load the current vault's price per share
-        uint256 currentPricePerShare = _pricePerShare();
-        // Load the new vault's price per share
-        uint256 newPricePerShare = newVault.pricePerShare();
-        // Load the current conversion rate or set it to 1
-        uint256 newConversionRate = conversionRate == 0 ? 1e18 : conversionRate;
-        // Calculate the new conversion rate, note by multiplying by the old
-        // conversion rate here we implicitly support more than 1 upgrade
-        newConversionRate =
-            (newConversionRate * newPricePerShare) /
-            currentPricePerShare;
-        // We now withdraw from the old yearn vault using max shares
-        // Note - Vaults should be checked in the future that they still have this behavior
-        vault.withdraw(type(uint256).max, address(this), 10000);
-        // Approve the new vault
-        token.approve(address(newVault), type(uint256).max);
-        // Then we deposit into the new vault
-        uint256 currentBalance = token.balanceOf(address(this));
-        uint256 outputShares = newVault.deposit(currentBalance, address(this));
-        // We enforce a min output
-        require(outputShares >= minOutputShares, "Not enough output");
-        // Change the stored variables
-        vault = newVault;
-        // because of the truncation yearn vaults can't have a larger diff than ~ billion
-        // times larger
-        conversionRate = uint88(newConversionRate);
     }
 }
