@@ -127,10 +127,6 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         address _destination,
         uint256
     ) internal override notPaused returns (uint256) {
-        // Amount underlying token out = (shares to burn / total shares) * total underlying token controlled by this contract
-        uint256 underlyingOut = (_shares *
-            rewardsContract.balanceOf(address(this))) / totalSupply;
-
         // We need to withdraw from the rewards contract & send to the destination
         // Boolean indicates that we don't want to collect rewards (this saves the user gas)
         uint256 amountUnderlyingToWithdraw = _sharesToUnderlying(_shares);
@@ -145,16 +141,16 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /**
      * @notice Get the underlying amount of tokens per shares given
-     * @param _amount The amount of shares you want to know the value of
+     * @param _shares The amount of shares you want to know the value of
      * @return Value of shares in underlying token
      */
-    function _sharesToUnderlying(uint256 _amount)
+    function _sharesToUnderlying(uint256 _shares)
         internal
         view
         override
         returns (uint256)
     {
-        return (_amount * _pricePerShare()) / (10**decimals);
+        return (_shares * _pricePerShare()) / (10**decimals);
     }
 
     /**
