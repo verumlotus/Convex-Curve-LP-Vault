@@ -242,7 +242,9 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @dev the caller must be authorized
      */
     function addSwapPath(bytes calldata path) external onlyAuthorized {
-        swapPaths.push(path);
+        // Push dummy path to expand array, then call setPath
+        swapPaths.push("");
+        setSwapPath(swapPaths.length - 1, path);
     }
 
     /**
@@ -262,41 +264,42 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @dev the caller must be authorized
      */
     function setSwapPath(uint256 index, bytes memory path)
-        external
+        public
         onlyAuthorized
     {
         // Multihop paths are of the form [tokenA, fee, tokenB, fee, tokenC, ... finalToken]
-        // If the index is 0 (CRV) or 1 (CVX) let's ensure that a compromised authorized address cannot rug
+        // Let's ensure that a compromised authorized address cannot rug
         // by verifying that the input & output tokens are whitelisted (ie output is part of 3CRV pool - DAI, USDC, or USDT)
-        if (index == 0 || index == 1) {
-            address inputToken;
-            address outputToken;
-            uint256 lengthOfPath = path.length;
-            assembly {
-                // skip length (first 32 bytes) to load in the next 32 bytes. Now truncate to get only first 20 bytes
-                // Address is 20 bytes, and truncates by taking the last 20 bytes of a 32 byte word.
-                // So, we shift right by 12 bytes (96 bits)
-                inputToken := shr(96, mload(add(path, 0x20)))
-                // get the last 20 bytes of path
-                // This is skip first 32 bytes, move to end of path array, then move back 20 to start of final outputToken address
-                // Truncate to only get first 20 bytes
-                outputToken := shr(
-                    96,
-                    mload(sub(add(add(path, 0x20), lengthOfPath), 0x14))
-                )
-            }
+        address inputToken;
+        address outputToken;
+        uint256 lengthOfPath = path.length;
+        assembly {
+            // skip length (first 32 bytes) to load in the next 32 bytes. Now truncate to get only first 20 bytes
+            // Address is 20 bytes, and truncates by taking the last 20 bytes of a 32 byte word.
+            // So, we shift right by 12 bytes (96 bits)
+            inputToken := shr(96, mload(add(path, 0x20)))
+            // get the last 20 bytes of path
+            // This is skip first 32 bytes, move to end of path array, then move back 20 to start of final outputToken address
+            // Truncate to only get first 20 bytes
+            outputToken := shr(
+                96,
+                mload(sub(add(add(path, 0x20), lengthOfPath), 0x14))
+            )
+        }
 
+        if (index == 0 || index == 1) {
             require(
                 inputToken == address(crv) || inputToken == address(cvx),
                 "Invalid input token"
             );
-            require(
-                outputToken == address(dai) ||
-                    outputToken == address(usdc) ||
-                    outputToken == address(usdt),
-                "Invalid output token"
-            );
         }
+
+        require(
+            outputToken == address(dai) ||
+                outputToken == address(usdc) ||
+                outputToken == address(usdt),
+            "Invalid output token"
+        );
 
         // Set the swap path
         swapPaths[index] = path;
