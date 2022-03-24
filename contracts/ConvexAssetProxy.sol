@@ -18,6 +18,11 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /// @notice whether this proxy is paused or not
     bool public paused;
 
+    /// @notice Contains multi-hop Uniswap V3 paths for trading CRV, CVX, & any other reward tokens
+    /// index 0 is CRV path, index 1 is CVX path
+    /// the order of other reward tokens should match the order of the basePoolRewards.extraRewards array
+    bytes[] public swapPaths;
+
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
@@ -34,9 +39,17 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /// by the booster contract when we deposit the underlying token
     IERC20 public immutable convexDepositToken;
 
+    /// @notice address of CRV, CVX, DAI, USDC, USDT
+    address public constant crv = 0xD533a949740bb3306d119CC777fa900bA034cd52;
+    address public constant cvx = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
+    address public constant dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
+    address public constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
+    address public constant usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+
     /************************************************
      *  EVENTS, ERRORS, MODIFIERS
      ***********************************************/
+    // TODO: Emit events in important places
 
     /**
      * @notice Sets immutables & storage variables
@@ -179,5 +192,61 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      */
     function pause(bool pauseStatus) external onlyAuthorized {
         paused = pauseStatus;
+    }
+
+    /**
+     * @notice Allows an authorized address to add a swap path
+     * @param path new path to use for swapping
+     * @dev the caller must be authorized
+     */
+    function addSwapPath(bytes calldata path) external onlyAuthorized {
+        swapPaths.push(path);
+    }
+
+    /**
+     * @notice Allows an authorized address to set the swap path for this contract
+     * @param index index in swapPaths array to overwrite
+     * @param path new path to use for swapping
+     * @dev the caller must be authorized
+     */
+    function setSwapPath(uint256 index, bytes memory path)
+        external
+        onlyAuthorized
+    {
+        // Multihop paths are of the form [tokenA, fee, tokenB, fee, tokenC, ... finalToken]
+        // If the index is 0 (CRV) or 1 (CVX) let's ensure that a compromised authorized address cannot rug
+        // by verifying that the input & output tokens are whitelisted (ie output is part of 3CRV pool - DAI, USDC, or USDT)
+        if (index == 0 || index == 1) {
+            address inputToken;
+            address outputToken;
+            uint256 lengthOfPath = path.length;
+            assembly {
+                // skip length (first 32 bytes) to load in the next 32 bytes. Now truncate to get only first 20 bytes
+                // Address is 20 bytes, and truncates by taking the last 20 bytes of a 32 byte word.
+                // So, we shift right by 12 bytes (96 bits)
+                inputToken := shr(96, mload(add(path, 0x20)))
+                // get the last 20 bytes of path
+                // This is skip first 32 bytes, move to end of path array, then move back 20 to start of final outputToken address
+                // Truncate to only get first 20 bytes
+                outputToken := shr(
+                    96,
+                    mload(sub(add(add(path, 32), lengthOfPath), 20))
+                )
+            }
+
+            require(
+                inputToken == crv || inputToken == cvx,
+                "Invalid input token"
+            );
+            require(
+                outputToken == dai ||
+                    outputToken == usdc ||
+                    outputToken == usdt,
+                "Invalid output token"
+            );
+        }
+
+        // Set the swap path
+        swapPaths[index] = path;
     }
 }
