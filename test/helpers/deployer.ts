@@ -1,5 +1,5 @@
-import { Signer } from "ethers";
 import { ethers } from "hardhat";
+import { BigNumberish, Signer } from "ethers";
 import "module-alias/register";
 import { DateString__factory } from "typechain/factories/DateString__factory";
 import { IERC20__factory } from "typechain/factories/IERC20__factory";
@@ -33,7 +33,10 @@ import data from "../../artifacts/contracts/Tranche.sol/Tranche.json";
 import { CompoundAssetProxy__factory } from "typechain/factories/CompoundAssetProxy__factory";
 import { CTokenInterface__factory } from "typechain/factories/CTokenInterface__factory";
 import { CompoundAssetProxy } from "typechain/CompoundAssetProxy";
-import { ConvexAssetProxy } from "typechain/ConvexAssetProxy";
+import {
+  ConvexAssetProxy,
+  ConstructorParamsStruct,
+} from "typechain/ConvexAssetProxy";
 import { IConvexBooster } from "typechain/IConvexBooster";
 import { IConvexBaseRewardPool } from "typechain/IConvexBaseRewardPool";
 import { ISwapRouter } from "typechain/ISwapRouter";
@@ -41,7 +44,7 @@ import { I3CurvePoolDepositZap } from "typechain/I3CurvePoolDepositZap";
 import { IConvexBooster__factory } from "typechain/factories/IConvexBooster__factory";
 import { IConvexBaseRewardPool__factory } from "typechain/factories/IConvexBaseRewardPool__factory";
 import { I3CurvePoolDepositZap__factory } from "./../../typechain/factories/I3CurvePoolDepositZap__factory";
-
+import { ConvexAssetProxy__factory } from "typechain/factories/ConvexAssetProxy__factory";
 import { CTokenInterface } from "typechain/CTokenInterface";
 
 export interface FixtureInterface {
@@ -193,6 +196,47 @@ const deployCasset = async (
     name,
     symbol,
     owner
+  );
+};
+
+const deployConvexAssetProxy = async (
+  signer: Signer,
+  curveZap: string,
+  curveMetaPool: string,
+  booster: string,
+  rewardsContract: string,
+  convexDepositToken: string,
+  router: string,
+  pid: BigNumberish,
+  keeperFee: BigNumberish,
+  crvSwapPath: string,
+  cvxSwapPath: string,
+  token: string,
+  name: string,
+  symbol: string,
+  governance: string,
+  pauser: string
+) => {
+  const convexDeployer = new ConvexAssetProxy__factory(signer);
+  const constructorParams: ConstructorParamsStruct = {
+    curveZap: curveZap,
+    curveMetaPool: curveMetaPool,
+    booster: booster,
+    rewardsContract: rewardsContract,
+    convexDepositToken: convexDepositToken,
+    router: router,
+    pid: pid,
+    keeperFee: keeperFee,
+  };
+  return await convexDeployer.deploy(
+    constructorParams,
+    crvSwapPath,
+    cvxSwapPath,
+    token,
+    name,
+    symbol,
+    governance,
+    pauser
   );
 };
 
@@ -359,6 +403,8 @@ export async function loadConvexFixture(signer: Signer) {
   const lpToken = IERC20__factory.connect(curveLusd3CRVPoolAddress, owner);
 
   const ownerAddress = await signer.getAddress();
+
+  // const position: ConvexAssetProxy = await
 }
 
 export async function loadEthPoolMainnetFixture() {
