@@ -272,7 +272,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     function addSwapPath(bytes calldata path) external onlyAuthorized {
         // Push dummy path to expand array, then call setPath
         swapPaths.push("");
-        setSwapPath(swapPaths.length - 1, path);
+        _setSwapPath(swapPaths.length - 1, path);
     }
 
     /**
@@ -286,15 +286,11 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     }
 
     /**
-     * @notice Allows an authorized address to set the swap path for this contract
+     * @notice Sets a new swap path
      * @param index index in swapPaths array to overwrite
      * @param path new path to use for swapping
-     * @dev the caller must be authorized
      */
-    function setSwapPath(uint256 index, bytes memory path)
-        public
-        onlyAuthorized
-    {
+    function _setSwapPath(uint256 index, bytes memory path) internal {
         // Multihop paths are of the form [tokenA, fee, tokenB, fee, tokenC, ... finalToken]
         // Let's ensure that a compromised authorized address cannot rug
         // by verifying that the input & output tokens are whitelisted (ie output is part of 3CRV pool - DAI, USDC, or USDT)
@@ -331,6 +327,19 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
         // Set the swap path
         swapPaths[index] = path;
+    }
+
+    /**
+     * @notice Allows an authorized address to set the swap path for this contract
+     * @param index index in swapPaths array to overwrite
+     * @param path new path to use for swapping
+     * @dev the caller must be authorized
+     */
+    function setSwapPath(uint256 index, bytes memory path)
+        public
+        onlyAuthorized
+    {
+        _setSwapPath(index, path);
     }
 
     /**
