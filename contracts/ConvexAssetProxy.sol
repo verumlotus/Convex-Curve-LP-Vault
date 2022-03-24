@@ -6,6 +6,7 @@ import "./WrappedConvexPosition.sol";
 import "./libraries/Authorizable.sol";
 import "./interfaces/external/IConvexBooster.sol";
 import "./interfaces/external/IConvexBaseRewardPool.sol";
+import "./interfaces/external/ISwapRouter.sol";
 
 /**
  * @title Convex Asset Proxy
@@ -43,16 +44,30 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /// by the booster contract when we deposit the underlying token
     IERC20 public immutable convexDepositToken;
 
-    /// @notice address of CRV, CVX, DAI, USDC, USDT
-    address public constant crv = 0xD533a949740bb3306d119CC777fa900bA034cd52;
-    address public constant cvx = 0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B;
-    address public constant dai = 0x6B175474E89094C44Da98b954EedeAC495271d0F;
-    address public constant usdc = 0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48;
-    address public constant usdt = 0xdAC17F958D2ee523a2206206994597C13D831ec7;
+    /// @notice Uniswap V3 router contract
+    ISwapRouter public immutable router;
 
+    /// @notice address of CRV, CVX, DAI, USDC, USDT
+    IERC20 public constant crv =
+        IERC20(0xD533a949740bb3306d119CC777fa900bA034cd52);
+    IERC20 public constant cvx =
+        IERC20(0x4e3FBD56CD56c3e72c1403e103b45Db9da5B9D2B);
+    IERC20 public constant dai =
+        IERC20(0x6B175474E89094C44Da98b954EedeAC495271d0F);
+    IERC20 public constant usdc =
+        IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
+    IERC20 public constant usdt =
+        IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
     /************************************************
-     *  EVENTS, ERRORS, MODIFIERS
+     *  EVENTS, STRUCTS, MODIFIERS
      ***********************************************/
+    /// @notice struct that helps define parameters for a swap
+    struct SwapHelper {
+        address token; // reward token we are swapping
+        uint256 deadline;
+        uint256 amountOutMinimum;
+    }
+
     // TODO: Emit events in important places
 
     /**
@@ -60,6 +75,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @param _booster address of convex booster for underlying token
      * @param _rewardsContract address of convex rewards contract for underlying token
      * @param _convexDepositToken address of convex deposit token reciept minted by booster
+     * @param _router address of Uniswap v3 router
      * @param _pid pool id of the underlying token (in the context of Convex's system)
      * @param _keeperFee the fee that a keeper recieves from calling harvest()
      * @param _crvSwapPath swap path for CRV token
@@ -74,6 +90,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         IConvexBooster _booster,
         IConvexBaseRewardPool _rewardsContract,
         IERC20 _convexDepositToken,
+        ISwapRouter _router,
         uint256 _pid,
         uint256 _keeperFee,
         bytes memory _crvSwapPath,
@@ -94,6 +111,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         rewardsContract = _rewardsContract;
         // Set convexDepositToken
         convexDepositToken = _convexDepositToken;
+        // Set uni v3 router address
+        router = _router;
         // Set the pool id
         pid = _pid;
         // set keeper fee
@@ -268,13 +287,13 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
             }
 
             require(
-                inputToken == crv || inputToken == cvx,
+                inputToken == address(crv) || inputToken == address(cvx),
                 "Invalid input token"
             );
             require(
-                outputToken == dai ||
-                    outputToken == usdc ||
-                    outputToken == usdt,
+                outputToken == address(dai) ||
+                    outputToken == address(usdc) ||
+                    outputToken == address(usdt),
                 "Invalid output token"
             );
         }
@@ -285,6 +304,47 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /**
      * @notice harvest logic to collect rewards in CRV, CVX, etc. The caller will receive a % of rewards (set by keeperFee)
+     * @param SwapParams a list of structs, one for each swap to be made, defining useful parameters
+     * @dev keeper will receive all rewards in the underlying token
+     * @dev most importantly, each SwapParams should have a reasonable amountOutMinimum to prevent egregious sandwich attacks or frontrunning
+     * @dev we must have a swapPaths path for each reward token we wish to swap
      */
-    function harvest() external onlyAuthorized {}
+    function harvest(SwapHelper[] memory swapHelpers) external onlyAuthorized {
+        // Collect our rewards, will also collect extra rewards
+        rewardsContract.getReward();
+
+        SwapHelper memory currParamHelper;
+        ISwapRouter.ExactInputParams memory params;
+        uint256 rewardTokenEarned;
+
+        // Let's swap all the tokens we need to
+        for (uint256 i = 0; i < swapHelpers.length; i++) {
+            currParamHelper = swapHelpers[i];
+            IERC20 rewardToken = IERC20(currParamHelper.token);
+
+            // Check to make sure that this isn't the underlying token or the deposit token
+            require(
+                address(rewardToken) != address(token) &&
+                    address(rewardToken) != address(convexDepositToken),
+                "Attempting to swap underlying or deposit token"
+            );
+
+            rewardTokenEarned = rewardToken.balanceOf(address(this));
+            if (rewardTokenEarned > 0) {
+                // Approve router to use our rewardToken
+                rewardToken.approve(address(router), rewardTokenEarned);
+
+                // Create params for the swap
+                currParamHelper = swapHelpers[i];
+                params = ISwapRouter.ExactInputParams({
+                    path: swapPaths[i],
+                    recipient: address(this),
+                    deadline: currParamHelper.deadline,
+                    amountIn: rewardTokenEarned,
+                    amountOutMinimum: currParamHelper.amountOutMinimum
+                });
+                router.exactInput(params);
+            }
+        }
+    }
 }
