@@ -1,6 +1,6 @@
 import { expect } from "chai";
 import { BigNumberish, Signer } from "ethers";
-import { ethers, waffle } from "hardhat";
+import { ethers, waffle, network } from "hardhat";
 
 import { ConvexFixtureInterface, loadConvexFixture } from "./helpers/deployer";
 import { createSnapshot, restoreSnapshot } from "./helpers/snapshots";
@@ -17,10 +17,27 @@ describe("Convex Asset Proxy", () => {
   const usdcWhaleAddress = "0xAe2D4617c862309A3d75A0fFB358c7a5009c673F";
   let user0LPStartingBalance: BigNumberish;
   let user1LPStartingBalance: BigNumberish;
+  const alchemy_key = "kwjMP-X-Vajdk1ItCfU-56Uaq1wwhamK";
 
   before(async () => {
     // snapshot initial state
     await createSnapshot(provider);
+
+    // We need to fast forward in time relative to the previous pinned block number
+    // The LUSD-3CRV pool was deployed at block 12184843, and our hardhat config currently
+    // pins block 11853372
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${alchemy_key}`,
+            // block at Mar-23-2022 08:34:43 AM +UTC
+            blockNumber: 14441489,
+          },
+        },
+      ],
+    });
 
     const signers = await ethers.getSigners();
     // load all related contracts
@@ -77,6 +94,19 @@ describe("Convex Asset Proxy", () => {
   // After we reset our state in the fork
   after(async () => {
     await restoreSnapshot(provider);
+
+    // After running all of these tests, reset back to the original pinned block
+    await network.provider.request({
+      method: "hardhat_reset",
+      params: [
+        {
+          forking: {
+            jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${alchemy_key}`,
+            blockNumber: 11853372,
+          },
+        },
+      ],
+    });
   });
 
   // Before each we snapshot

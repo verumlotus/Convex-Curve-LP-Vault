@@ -437,7 +437,7 @@ export async function loadConvexFixture(
     keeperFee,
     crvSwapPath,
     cvxSwapPath,
-    lpToken,
+    curveMetaPool,
     "proxyLusd3CRV",
     "epLusd3Crv",
     ownerAddress,
