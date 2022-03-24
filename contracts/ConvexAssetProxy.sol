@@ -18,6 +18,10 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /// @notice whether this proxy is paused or not
     bool public paused;
 
+    /// @notice % fee keeper collects when calling harvest().
+    /// Upper bound is 1000 (i.e 25 would be 2.5% of the total rewards)
+    uint256 public keeperFee;
+
     /// @notice Contains multi-hop Uniswap V3 paths for trading CRV, CVX, & any other reward tokens
     /// index 0 is CRV path, index 1 is CVX path
     /// the order of other reward tokens should match the order of the basePoolRewards.extraRewards array
@@ -57,6 +61,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @param _rewardsContract address of convex rewards contract for underlying token
      * @param _convexDepositToken address of convex deposit token reciept minted by booster
      * @param _pid pool id of the underlying token (in the context of Convex's system)
+     * @param _keeperFee the fee that a keeper recieves from calling harvest()
      * @param _crvSwapPath swap path for CRV token
      * @param _cvxSwapPath swap path for CVX token
      * @param _token The underlying token. This token should revert in the event of a transfer failure
@@ -70,6 +75,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         IConvexBaseRewardPool _rewardsContract,
         IERC20 _convexDepositToken,
         uint256 _pid,
+        uint256 _keeperFee,
         bytes memory _crvSwapPath,
         bytes memory _cvxSwapPath,
         IERC20 _token,
@@ -90,6 +96,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         convexDepositToken = _convexDepositToken;
         // Set the pool id
         pid = _pid;
+        // set keeper fee
+        keeperFee = _keeperFee;
         // Add the swap paths
         swapPaths.push(_crvSwapPath);
         swapPaths.push(_cvxSwapPath);
@@ -202,6 +210,14 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     }
 
     /**
+     * @notice sets a new keeper fee, only callable by owner
+     * @param newFee the new keeper fee to set
+     */
+    function setKeeperFee(uint256 newFee) external onlyOwner {
+        keeperFee = newFee;
+    }
+
+    /**
      * @notice Allows an authorized address to add a swap path
      * @param path new path to use for swapping
      * @dev the caller must be authorized
@@ -256,4 +272,9 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Set the swap path
         swapPaths[index] = path;
     }
+
+    /**
+     * @notice harvest logic to collect rewards in CRV, CVX, etc. The caller will receive a % of rewards (set by keeperFee)
+     */
+    function harvest() external onlyAuthorized {}
 }
