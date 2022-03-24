@@ -137,6 +137,27 @@ describe.only("Convex Asset Proxy", () => {
         subError(ethers.BigNumber.from(user0LPStartingBalance))
       );
     });
+
+    it("Allows for two deposits correctly", async () => {
+      const minimumBalanceLpTokens = user0LPStartingBalance.gt(
+        user1LPStartingBalance
+      )
+        ? user1LPStartingBalance
+        : user0LPStartingBalance;
+
+      await fixture.position
+        .connect(users[0].user)
+        .deposit(users[0].address, minimumBalanceLpTokens);
+      await fixture.position
+        .connect(users[1].user)
+        .deposit(users[1].address, minimumBalanceLpTokens);
+      const user0Balance = await fixture.position.balanceOf(users[0].address);
+      const user1Balance = await fixture.position.balanceOf(users[1].address);
+
+      // They are the only two depositors and deposit same amount, so they should have same shares
+      expect(user0Balance).to.be.eq(user1Balance);
+    });
+
     it("fails to deposit amount greater than available", async () => {
       const tx = fixture.position
         .connect(users[1].user)
@@ -147,30 +168,40 @@ describe.only("Convex Asset Proxy", () => {
       await expect(tx).to.be.reverted;
     });
   });
-  // describe("withdraw", () => {
-  //   it("withdraws correctly", async () => {
-  //     const shareBalance = await fixture.position.balanceOf(users[0].address);
-  //     await fixture.position
-  //       .connect(users[0].user)
-  //       .withdraw(users[0].address, shareBalance, 0);
-  //     expect(await fixture.position.balanceOf(users[0].address)).to.equal(0);
-  //   });
-  //   it("fails to withdraw more shares than in balance", async () => {
-  //     // withdraw 10 shares from user with balance 0
-  //     const tx = fixture.position
-  //       .connect(users[4].user)
-  //       .withdraw(users[4].address, 10, 0);
-  //     await expect(tx).to.be.reverted;
-  //   });
-  //   // test withdrawUnderlying to verify _underlying calculation
-  //   it("withdrawUnderlying correctly", async () => {
-  //     const shareBalance = await fixture.position.balanceOf(users[0].address);
-  //     await fixture.position
-  //       .connect(users[2].user)
-  //       .withdrawUnderlying(users[2].address, shareBalance, 0);
-  //     expect(await fixture.position.balanceOf(users[2].address)).to.equal(0);
-  //   });
-  // });
+  describe("withdraw", () => {
+    it("withdraws correctly", async () => {
+      await fixture.position
+        .connect(users[0].user)
+        .deposit(users[0].address, user0LPStartingBalance);
+      const shareBalance = await fixture.position.balanceOf(users[0].address);
+      await fixture.position
+        .connect(users[0].user)
+        .withdraw(users[0].address, shareBalance, 0);
+      expect(await fixture.position.balanceOf(users[0].address)).to.equal(0);
+    });
+    it("fails to withdraw more shares than in balance", async () => {
+      // withdraw 10 shares from user with balance 0
+      const tx = fixture.position
+        .connect(users[4].user)
+        .withdraw(users[4].address, 10, 0);
+      await expect(tx).to.be.reverted;
+    });
+    // test withdrawUnderlying to verify _underlying calculation
+    it("withdrawUnderlying correctly", async () => {
+      await fixture.position
+        .connect(users[0].user)
+        .deposit(users[0].address, user0LPStartingBalance);
+      const shareBalance = await fixture.position.balanceOf(users[0].address);
+      // Withdraw to get 1/2 LP tokens sent to user2
+      await fixture.position
+        .connect(users[0].user)
+        .withdrawUnderlying(users[2].address, shareBalance.div(2), 0);
+      expect(await fixture.position.balanceOf(users[2].address)).to.equal(0);
+      expect(await fixture.lpToken.balanceOf(users[2].address)).to.equal(
+        shareBalance.div(2)
+      );
+    });
+  });
   // describe("rewards", () => {
   //   it("collects rewards", async () => {
   //     // starting balance should be 0
