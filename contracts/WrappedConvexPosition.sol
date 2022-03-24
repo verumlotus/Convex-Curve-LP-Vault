@@ -8,7 +8,6 @@ import "./interfaces/IWrappedPosition.sol";
 import "./libraries/ERC20PermitWithSupply.sol";
 
 /// @title Wrapped Convex Position Core
-/// note: Only difference with WrappedPosition is that we use ERC20 with totalSupply()
 abstract contract WrappedConvexPosition is
     ERC20PermitWithSupply,
     IWrappedPosition
