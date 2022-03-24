@@ -7,10 +7,12 @@ import "./libraries/Authorizable.sol";
 import "./interfaces/external/IConvexBooster.sol";
 import "./interfaces/external/IConvexBaseRewardPool.sol";
 import "./interfaces/external/ISwapRouter.sol";
+import "./interfaces/external/I3CurvePoolDepositZap.sol";
 
 /**
  * @title Convex Asset Proxy
  * @notice Proxy for depositing Curve LP shares into Convex's system, and providing a shares based abstraction of ownership
+ * @notice Integrating with Curve is quite messy due to non-standard interfaces. Some of the logic below is specific to 3CRV-LUSD
  */
 contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /************************************************
@@ -31,6 +33,12 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /************************************************
      *  IMMUTABLES & CONSTANTS
      ***********************************************/
+    /// @notice 3 pool curve zap (deposit contract)
+    I3CurvePoolDepositZap public immutable curveZap;
+
+    /// @notice specific pool that the zapper will deposit into under the hood
+    address public immutable curveMetaPool;
+
     /// @notice the pool id (in Convex's system) of the underlying token
     uint256 public immutable pid;
 
@@ -70,6 +78,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /// @notice helper in constructor to avoid stack too deep
     /**
+     * curveZap - address of 3pool Deposit Zap
+     * curveMetaPool - underlying curve pool
      * _booster address of convex booster for underlying token
      * _rewardsContract address of convex rewards contract for underlying token
      * _convexDepositToken address of convex deposit token reciept minted by booster
@@ -78,6 +88,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * _keeperFee the fee that a keeper recieves from calling harvest()
      */
     struct constructorParams {
+        I3CurvePoolDepositZap curveZap;
+        address curveMetaPool;
         IConvexBooster booster;
         IConvexBaseRewardPool rewardsContract;
         IERC20 convexDepositToken;
@@ -114,6 +126,10 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         _authorize(_pauser);
         // set the owner
         setOwner(_governance);
+        // Set curve zap contract
+        curveZap = _constructorParams.curveZap;
+        // Set the metapool
+        curveMetaPool = _constructorParams.curveMetaPool;
         // Set the booster
         booster = _constructorParams.booster;
         // Set the rewards contract
@@ -225,6 +241,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @notice Reset approval for booster contract
      */
     function approve() external {
+        // We need to reset to 0 and then approve again
+        // see https://curve.readthedocs.io/exchange-lp-tokens.html#CurveToken.approve
         token.approve(address(booster), 0);
         token.approve(address(booster), type(uint256).max);
     }
@@ -316,6 +334,19 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     }
 
     /**
+     * @notice approves curve zap (deposit) contract for all 3 stable coins
+     * @dev note that curve requires us to set approval to 0 & then the desired value
+     */
+    function _approveAll() internal {
+        dai.approve(address(curveZap), 0);
+        dai.approve(address(curveZap), type(uint256).max);
+        usdc.approve(address(curveZap), 0);
+        usdc.approve(address(curveZap), type(uint256).max);
+        usdt.approve(address(curveZap), 0);
+        usdt.approve(address(curveZap), type(uint256).max);
+    }
+
+    /**
      * @notice harvest logic to collect rewards in CRV, CVX, etc. The caller will receive a % of rewards (set by keeperFee)
      * @param swapHelpers a list of structs, one for each swap to be made, defining useful parameters
      * @dev keeper will receive all rewards in the underlying token
@@ -359,5 +390,26 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
                 router.exactInput(params);
             }
         }
+
+        // First give approval to the curve zap contract to access our stable coins
+        _approveAll();
+        uint256 daiBalance = dai.balanceOf(address(this));
+        uint256 usdcBalance = usdc.balanceOf(address(this));
+        uint256 usdtBalance = usdt.balanceOf(address(this));
+        curveZap.add_liquidity(
+            curveMetaPool,
+            [0, daiBalance, usdcBalance, usdtBalance],
+            0
+        );
+
+        // See how many underlying tokens we received
+        uint256 underlyingReceived = token.balanceOf(address(this));
+        // Transfer keeper Fee to msg.sender
+        // Bounty = (keeper Fee / 1000) * underlying Received
+        uint256 bounty = (keeperFee * underlyingReceived) / 1e3;
+        token.transfer(msg.sender, bounty);
+
+        // Now stake the newly recieved underlying to the booster contract
+        booster.deposit(pid, token.balanceOf(address(this)), true);
     }
 }
