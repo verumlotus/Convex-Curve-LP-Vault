@@ -68,16 +68,30 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         uint256 amountOutMinimum;
     }
 
+    /// @notice helper in constructor to avoid stack too deep
+    /**
+     * _booster address of convex booster for underlying token
+     * _rewardsContract address of convex rewards contract for underlying token
+     * _convexDepositToken address of convex deposit token reciept minted by booster
+     * _router address of Uniswap v3 router
+     * _pid pool id of the underlying token (in the context of Convex's system)
+     * _keeperFee the fee that a keeper recieves from calling harvest()
+     */
+    struct constructorParams {
+        IConvexBooster booster;
+        IConvexBaseRewardPool rewardsContract;
+        IERC20 convexDepositToken;
+        ISwapRouter router;
+        uint256 pid;
+        uint256 keeperFee;
+    }
+
     // TODO: Emit events in important places
 
     /**
      * @notice Sets immutables & storage variables
-     * @param _booster address of convex booster for underlying token
-     * @param _rewardsContract address of convex rewards contract for underlying token
-     * @param _convexDepositToken address of convex deposit token reciept minted by booster
-     * @param _router address of Uniswap v3 router
-     * @param _pid pool id of the underlying token (in the context of Convex's system)
-     * @param _keeperFee the fee that a keeper recieves from calling harvest()
+     * @dev we use a struct to pack variables to avoid a stack too deep error
+     * @param _constructorParams packing variables to avoid stack error - see struct natspec comments
      * @param _crvSwapPath swap path for CRV token
      * @param _cvxSwapPath swap path for CVX token
      * @param _token The underlying token. This token should revert in the event of a transfer failure
@@ -87,12 +101,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @param _pauser Address that can pause this contract
      */
     constructor(
-        IConvexBooster _booster,
-        IConvexBaseRewardPool _rewardsContract,
-        IERC20 _convexDepositToken,
-        ISwapRouter _router,
-        uint256 _pid,
-        uint256 _keeperFee,
+        constructorParams memory _constructorParams,
         bytes memory _crvSwapPath,
         bytes memory _cvxSwapPath,
         IERC20 _token,
@@ -106,26 +115,27 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // set the owner
         setOwner(_governance);
         // Set the booster
-        booster = _booster;
+        booster = _constructorParams.booster;
         // Set the rewards contract
-        rewardsContract = _rewardsContract;
+        rewardsContract = _constructorParams.rewardsContract;
         // Set convexDepositToken
-        convexDepositToken = _convexDepositToken;
+        convexDepositToken = _constructorParams.convexDepositToken;
         // Set uni v3 router address
-        router = _router;
+        router = _constructorParams.router;
         // Set the pool id
-        pid = _pid;
+        pid = _constructorParams.pid;
         // set keeper fee
-        keeperFee = _keeperFee;
+        keeperFee = _constructorParams.keeperFee;
         // Add the swap paths
         swapPaths.push(_crvSwapPath);
         swapPaths.push(_cvxSwapPath);
         // Approve the booster so it can pull tokens from this address
-        _token.approve(address(_booster), type(uint256).max);
+        _token.approve(address(_constructorParams.booster), type(uint256).max);
 
         // We want our shares decimals to be the same as the convex deposit token decimals
         require(
-            decimals == IERC20(_convexDepositToken).decimals(),
+            decimals ==
+                IERC20(_constructorParams.convexDepositToken).decimals(),
             "Inconsistent decimals"
         );
     }
