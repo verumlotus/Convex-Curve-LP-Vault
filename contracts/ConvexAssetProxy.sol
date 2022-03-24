@@ -57,6 +57,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @param _rewardsContract address of convex rewards contract for underlying token
      * @param _convexDepositToken address of convex deposit token reciept minted by booster
      * @param _pid pool id of the underlying token (in the context of Convex's system)
+     * @param _crvSwapPath swap path for CRV token
+     * @param _cvxSwapPath swap path for CVX token
      * @param _token The underlying token. This token should revert in the event of a transfer failure
      * @param _name The name of the token (shares) created by this contract
      * @param _symbol The symbol of the token (shares) created by this contract
@@ -68,6 +70,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         IConvexBaseRewardPool _rewardsContract,
         IERC20 _convexDepositToken,
         uint256 _pid,
+        bytes memory _crvSwapPath,
+        bytes memory _cvxSwapPath,
         IERC20 _token,
         string memory _name,
         string memory _symbol,
@@ -86,6 +90,9 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         convexDepositToken = _convexDepositToken;
         // Set the pool id
         pid = _pid;
+        // Add the swap paths
+        swapPaths.push(_crvSwapPath);
+        swapPaths.push(_cvxSwapPath);
         // Approve the booster so it can pull tokens from this address
         _token.approve(address(_booster), type(uint256).max);
 
