@@ -15,12 +15,6 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /************************************************
      *  STORAGE
      ***********************************************/
-    /// @notice address of the convex Booster contract
-    IConvexBooster public booster;
-
-    /// @notice address of the convex rewards contract
-    IConvexBaseRewardPool public rewardsContract;
-
     /// @notice whether this proxy is paused or not
     bool public paused;
 
@@ -29,6 +23,12 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      ***********************************************/
     /// @notice the pool id (in Convex's system) of the underlying token
     uint256 public immutable pid;
+
+    /// @notice address of the convex Booster contract
+    IConvexBooster public immutable booster;
+
+    /// @notice address of the convex rewards contract
+    IConvexBaseRewardPool public immutable rewardsContract;
 
     /// @notice Address of the deposit token 'reciepts' that are given to us
     /// by the booster contract when we deposit the underlying token
@@ -74,7 +74,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Set the pool id
         pid = _pid;
         // Approve the booster so it can pull tokens from this address
-        _token.approve(address(booster), type(uint256).max);
+        _token.approve(address(_booster), type(uint256).max);
 
         // We want our shares decimals to be the same as the convex deposit token decimals
         require(
