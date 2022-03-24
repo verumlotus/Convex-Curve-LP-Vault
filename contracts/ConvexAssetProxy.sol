@@ -307,7 +307,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /**
      * @notice harvest logic to collect rewards in CRV, CVX, etc. The caller will receive a % of rewards (set by keeperFee)
-     * @param SwapParams a list of structs, one for each swap to be made, defining useful parameters
+     * @param swapHelpers a list of structs, one for each swap to be made, defining useful parameters
      * @dev keeper will receive all rewards in the underlying token
      * @dev most importantly, each SwapParams should have a reasonable amountOutMinimum to prevent egregious sandwich attacks or frontrunning
      * @dev we must have a swapPaths path for each reward token we wish to swap
