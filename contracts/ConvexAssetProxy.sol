@@ -191,8 +191,15 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Note that convex deposit receipt tokens and underlying are in a 1:1 relationship
         // i.e for every 1 underlying we deposit we'd be credited with 1 deposit receipt token
         // So we can calculate the total amount deposited in underlying by querying for our balance of deposit receipt token
-        uint256 sharesToMint = (amount * totalSupply) /
-            rewardsContract.balanceOf(address(this));
+        uint256 sharesToMint;
+        if (totalSupply != 0) {
+            sharesToMint =
+                (amount * totalSupply) /
+                rewardsContract.balanceOf(address(this));
+        } else {
+            // Reach this case if we have no shares
+            sharesToMint = amount;
+        }
 
         // Deposit underlying tokens
         // Last boolean indicates whether we want the Booster to auto-stake our deposit tokens in the reward contract for us
