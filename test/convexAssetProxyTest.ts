@@ -1,3 +1,4 @@
+import { SwapHelperStruct } from "typechain/ConvexAssetProxy";
 import { expect } from "chai";
 import { BigNumber, Signer } from "ethers";
 import { ethers, waffle, network } from "hardhat";
@@ -7,6 +8,7 @@ import { createSnapshot, restoreSnapshot } from "./helpers/snapshots";
 
 import { impersonate, stopImpersonating } from "./helpers/impersonate";
 import { subError } from "./helpers/math";
+import { advanceBlock } from "./helpers/time";
 
 const { provider } = waffle;
 
@@ -202,25 +204,69 @@ describe.only("Convex Asset Proxy", () => {
       );
     });
   });
-  // describe("rewards", () => {
-  //   it("collects rewards", async () => {
-  //     // starting balance should be 0
-  //     expect(await fixture.comp.balanceOf(users[0].address)).to.equal(0);
-  //     // collect the rewards
-  //     await fixture.position
-  //       .connect(users[0].user)
-  //       .collectRewards(users[0].address);
-  //     // after collection balance should be nonzero
-  //     const balance = await (
-  //       await fixture.comp.balanceOf(users[0].address)
-  //     ).toNumber();
-  //     expect(balance).to.be.greaterThan(0);
-  //   });
-  //   it("fails for unauthorized user", async () => {
-  //     const tx = fixture.position
-  //       .connect(users[1].user)
-  //       .collectRewards(users[0].address);
-  //     await expect(tx).to.be.revertedWith("Sender not Authorized");
-  //   });
-  // });
+  describe.only("rewards", () => {
+    it("Harvests rewards correctly", async () => {
+      await fixture.position
+        .connect(users[0].user)
+        .deposit(users[0].address, user0LPStartingBalance);
+
+      // Now simulate passage of time to accrue CRV, CVX rewards
+      // TODO: Change this back to 5760
+      const blocks_per_day = 1;
+      const days_to_simulate = 2;
+      for (let i = 0; i < blocks_per_day * days_to_simulate; i++) {
+        await advanceBlock(provider);
+      }
+
+      // Now let the owner (user[0]) approve user 4 as an authorized harvester
+      await fixture.position.connect(users[0].user).authorize(users[4].address);
+
+      // Now check deposited token balance before & after for our wrapped position
+      // Also check balance of LP token for harvester to ensure they received a bounty
+      const cvxDepositTokenBalanceBefore =
+        await fixture.convexDepositToken.balanceOf(fixture.position.address);
+      const harvesterLpTokenBalanceBefore = await fixture.lpToken.balanceOf(
+        users[4].address
+      );
+
+      // Now trigger a harvest
+      // First, create our struct helpers for crv, cvx
+      const crvHelper: SwapHelperStruct = {
+        token: fixture.crv.address,
+        deadline: ethers.constants.MaxUint256,
+        amountOutMinimum: 0,
+      };
+      const cvxHelper: SwapHelperStruct = {
+        token: fixture.cvx.address,
+        deadline: ethers.constants.MaxUint256,
+        amountOutMinimum: 0,
+      };
+
+      await fixture.position
+        .connect(users[4].user)
+        .harvest([crvHelper, cvxHelper]);
+
+      // Now we should have more convexDeposit Token
+      const cvxDepositTokenBalanceAfter =
+        await fixture.convexDepositToken.balanceOf(fixture.position.address);
+      expect(cvxDepositTokenBalanceAfter).to.be.gt(
+        cvxDepositTokenBalanceBefore
+      );
+
+      // Harvester should have received a bounty
+      const harvesterLpTokenBalanceAfter = await fixture.lpToken.balanceOf(
+        users[4].address
+      );
+      expect(harvesterLpTokenBalanceAfter).to.be.gt(
+        harvesterLpTokenBalanceBefore
+      );
+    });
+
+    // it("fails for unauthorized user", async () => {
+    //   const tx = fixture.position
+    //     .connect(users[1].user)
+    //     .collectRewards(users[0].address);
+    //   await expect(tx).to.be.revertedWith("Sender not Authorized");
+    // });
+  });
 });
