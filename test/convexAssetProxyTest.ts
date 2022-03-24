@@ -1,5 +1,5 @@
 import { expect } from "chai";
-import { BigNumberish, Signer } from "ethers";
+import { BigNumber, Signer } from "ethers";
 import { ethers, waffle, network } from "hardhat";
 
 import { ConvexFixtureInterface, loadConvexFixture } from "./helpers/deployer";
@@ -10,13 +10,13 @@ import { subError } from "./helpers/math";
 
 const { provider } = waffle;
 
-describe("Convex Asset Proxy", () => {
+describe.only("Convex Asset Proxy", () => {
   let users: { user: Signer; address: string }[];
   let fixture: ConvexFixtureInterface;
   // address of a large usdc holder to impersonate. 69 million usdc as of block 11860000
   const usdcWhaleAddress = "0xAe2D4617c862309A3d75A0fFB358c7a5009c673F";
-  let user0LPStartingBalance: BigNumberish;
-  let user1LPStartingBalance: BigNumberish;
+  let user0LPStartingBalance: BigNumber;
+  let user1LPStartingBalance: BigNumber;
   const alchemy_key = "kwjMP-X-Vajdk1ItCfU-56Uaq1wwhamK";
 
   before(async () => {
@@ -137,12 +137,15 @@ describe("Convex Asset Proxy", () => {
         subError(ethers.BigNumber.from(user0LPStartingBalance))
       );
     });
-    //   it("fails to deposit amount greater than available", async () => {
-    //     const tx = fixture.position
-    //       .connect(users[1].user)
-    //       .deposit(users[1].address, 10e12);
-    //     await expect(tx).to.be.reverted;
-    //   });
+    it("fails to deposit amount greater than available", async () => {
+      const tx = fixture.position
+        .connect(users[1].user)
+        .deposit(
+          users[1].address,
+          user1LPStartingBalance.add(ethers.constants.WeiPerEther)
+        );
+      await expect(tx).to.be.reverted;
+    });
   });
   // describe("withdraw", () => {
   //   it("withdraws correctly", async () => {
