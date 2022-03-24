@@ -45,6 +45,7 @@ import { IConvexBooster__factory } from "typechain/factories/IConvexBooster__fac
 import { IConvexBaseRewardPool__factory } from "typechain/factories/IConvexBaseRewardPool__factory";
 import { I3CurvePoolDepositZap__factory } from "./../../typechain/factories/I3CurvePoolDepositZap__factory";
 import { ConvexAssetProxy__factory } from "typechain/factories/ConvexAssetProxy__factory";
+import { ISwapRouter__factory } from "typechain/factories/ISwapRouter__factory";
 import { CTokenInterface } from "typechain/CTokenInterface";
 
 export interface FixtureInterface {
@@ -386,6 +387,23 @@ export async function loadConvexFixture(signer: Signer) {
   // Metapool for LUSD3CRV, also the LP token address
   const curveLusd3CRVPoolAddress = "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA";
   const cvxLusd3CRV = "0xFB9B2f06FDb404Fd3E2278E9A9edc8f252F273d0";
+  // Uniswap V3 router address
+  const routerAddress = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
+  // Pool ID for LUSD-3CRV pool
+  const pid = 33;
+  // Keeper fee is 5%
+  const keeperFee = 50;
+  // multi-hops are [TokenA, fee, TokenB, fee, TokenC, ... TokenOut]
+  // Jump from CRV to WETH to USDC
+  // Note: 10000 = 1% pool fee
+  const crvSwapPath = ethers.utils.solidityPack(
+    ["address", "uint256", "address", "uint256", "address"],
+    [crvAddress, 10000, wethAddress, 500, usdcAddress]
+  );
+  const cvxSwapPath = ethers.utils.solidityPack(
+    ["address", "uint256", "address", "uint256", "address"],
+    [cvxAddress, 10000, wethAddress, 500, usdcAddress]
+  );
 
   const usdc = IERC20__factory.connect(usdcAddress, owner);
   const crv = IERC20__factory.connect(crvAddress, owner);
@@ -401,10 +419,28 @@ export async function loadConvexFixture(signer: Signer) {
   );
   const convexDepositToken = IERC20__factory.connect(cvxLusd3CRV, owner);
   const lpToken = IERC20__factory.connect(curveLusd3CRVPoolAddress, owner);
+  const router = ISwapRouter__factory.connect(routerAddress, owner);
 
   const ownerAddress = await signer.getAddress();
 
-  // const position: ConvexAssetProxy = await
+  const position: ConvexAssetProxy = await deployConvexAssetProxy(
+    owner,
+    pool3CrvDepositZapAddress,
+    curveLusd3CRVPoolAddress,
+    boosterAddress,
+    rewardsContractAddress,
+    cvxLusd3CRV,
+    routerAddress,
+    pid,
+    keeperFee,
+    crvSwapPath,
+    cvxSwapPath,
+    lpToken,
+    "proxyLusd3CRV",
+    "epLusd3Crv",
+    ownerAddress,
+    ownerAddress
+  );
 }
 
 export async function loadEthPoolMainnetFixture() {
