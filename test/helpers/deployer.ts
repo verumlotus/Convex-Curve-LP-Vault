@@ -373,7 +373,9 @@ export async function loadCFixture(signer: Signer) {
   return { signer, position, cusdc, usdc, comp, proxy };
 }
 
-export async function loadConvexFixture(signer: Signer) {
+export async function loadConvexFixture(
+  signer: Signer
+): Promise<ConvexFixtureInterface> {
   // Some addresses specific to LUSD3CRV pool
   const wethAddress = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
   const owner = signer;
@@ -385,7 +387,7 @@ export async function loadConvexFixture(signer: Signer) {
   const pool3CrvDepositZapAddress =
     "0xA79828DF1850E8a3A3064576f380D90aECDD3359";
   // Metapool for LUSD3CRV, also the LP token address
-  const curveLusd3CRVPoolAddress = "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA";
+  const curveMetaPool = "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA";
   const cvxLusd3CRV = "0xFB9B2f06FDb404Fd3E2278E9A9edc8f252F273d0";
   // Uniswap V3 router address
   const routerAddress = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
@@ -418,7 +420,7 @@ export async function loadConvexFixture(signer: Signer) {
     owner
   );
   const convexDepositToken = IERC20__factory.connect(cvxLusd3CRV, owner);
-  const lpToken = IERC20__factory.connect(curveLusd3CRVPoolAddress, owner);
+  const lpToken = IERC20__factory.connect(curveMetaPool, owner);
   const router = ISwapRouter__factory.connect(routerAddress, owner);
 
   const ownerAddress = await signer.getAddress();
@@ -426,7 +428,7 @@ export async function loadConvexFixture(signer: Signer) {
   const position: ConvexAssetProxy = await deployConvexAssetProxy(
     owner,
     pool3CrvDepositZapAddress,
-    curveLusd3CRVPoolAddress,
+    curveMetaPool,
     boosterAddress,
     rewardsContractAddress,
     cvxLusd3CRV,
@@ -441,6 +443,48 @@ export async function loadConvexFixture(signer: Signer) {
     ownerAddress,
     ownerAddress
   );
+
+  // deploy and fetch tranche contract
+  const trancheFactory = await deployTrancheFactory(owner);
+  await trancheFactory.deployTranche(1e10, position.address);
+  const eventFilter = trancheFactory.filters.TrancheCreated(null, null, null);
+  const events = await trancheFactory.queryFilter(eventFilter);
+  const trancheAddress = events[0] && events[0].args && events[0].args[0];
+  const tranche = Tranche__factory.connect(trancheAddress, owner);
+
+  const interestTokenAddress = await tranche.interestToken();
+  const interestToken = InterestToken__factory.connect(
+    interestTokenAddress,
+    owner
+  );
+
+  // Setup the proxy
+  const bytecodehash = ethers.utils.solidityKeccak256(
+    ["bytes"],
+    [data.bytecode]
+  );
+  const proxyFactory = new TestUserProxy__factory(signer);
+  const proxy = await proxyFactory.deploy(
+    wethAddress,
+    trancheFactory.address,
+    bytecodehash
+  );
+
+  return {
+    signer,
+    position,
+    booster,
+    rewardsContract,
+    curveZap,
+    curveMetaPool,
+    convexDepositToken,
+    lpToken,
+    router,
+    usdc,
+    crv,
+    cvx,
+    proxy,
+  };
 }
 
 export async function loadEthPoolMainnetFixture() {
