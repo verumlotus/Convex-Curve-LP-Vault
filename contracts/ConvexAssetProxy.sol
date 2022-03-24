@@ -227,6 +227,16 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     }
 
     /**
+     * @notice Allows an authorized address to delete a swap path
+     * @dev note we only allow deleting the last path to avoid a gap in our array
+     * If a path besides the last path must be deleted, deletePath & addSwapPath will have to be called
+     * in an appropriate order
+     */
+    function deleteSwapPath() external onlyAuthorized {
+        delete swapPaths[swapPaths.length - 1];
+    }
+
+    /**
      * @notice Allows an authorized address to set the swap path for this contract
      * @param index index in swapPaths array to overwrite
      * @param path new path to use for swapping
