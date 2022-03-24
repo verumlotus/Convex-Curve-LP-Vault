@@ -66,9 +66,25 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         IERC20(0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48);
     IERC20 public constant usdt =
         IERC20(0xdAC17F958D2ee523a2206206994597C13D831ec7);
+
     /************************************************
      *  EVENTS, STRUCTS, MODIFIERS
      ***********************************************/
+    /// @notice emit when pause status changed
+    event PauseStatusChanged(bool indexed pauseStatus);
+
+    /// @notice emit when keeper fee changed
+    event KeeperFeeChanged(uint256 newFee);
+
+    /// @notice emit when a swap path is changed
+    event SwapPathChanged(uint256 indexed index, bytes path);
+
+    /// @notice emit on a harvest
+    event Harvested(address harvester, uint256 underlyingHarvested);
+
+    /// @notice emit on a sweep
+    event Sweeped(address destination, address[] tokensSweeped);
+
     /// @notice struct that helps define parameters for a swap
     struct SwapHelper {
         address token; // reward token we are swapping
@@ -97,8 +113,6 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         uint256 pid;
         uint256 keeperFee;
     }
-
-    // TODO: Emit events in important places
 
     /**
      * @notice Sets immutables & storage variables
@@ -254,6 +268,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      */
     function pause(bool pauseStatus) external onlyAuthorized {
         paused = pauseStatus;
+        emit PauseStatusChanged(pauseStatus);
     }
 
     /**
@@ -262,6 +277,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      */
     function setKeeperFee(uint256 newFee) external onlyOwner {
         keeperFee = newFee;
+        emit KeeperFeeChanged(newFee);
     }
 
     /**
@@ -327,6 +343,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
         // Set the swap path
         swapPaths[index] = path;
+        emit SwapPathChanged(index, path);
     }
 
     /**
@@ -420,23 +437,25 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
         // Now stake the newly recieved underlying to the booster contract
         booster.deposit(pid, token.balanceOf(address(this)), true);
+        emit Harvested(msg.sender, underlyingReceived);
     }
 
     /**
      * @notice sweeps this contract to rescue any tokens that we do not handle
      * Could deal with reward tokens we didn't account for, airdropped tokens, etc.
-     * @param tokensToRescue array of token address to transfer to destination
+     * @param tokensToSweep array of token address to transfer to destination
      * @param destination the address to send all recovered tokens to
      */
-    function sweep(address[] memory tokensToRescue, address destination)
+    function sweep(address[] memory tokensToSweep, address destination)
         external
         onlyOwner
     {
-        for (uint256 i = 0; i < tokensToRescue.length; i++) {
-            IERC20(tokensToRescue[i]).transfer(
+        for (uint256 i = 0; i < tokensToSweep.length; i++) {
+            IERC20(tokensToSweep[i]).transfer(
                 destination,
-                IERC20(tokensToRescue[i]).balanceOf(address(this))
+                IERC20(tokensToSweep[i]).balanceOf(address(this))
             );
         }
+        emit Sweeped(destination, tokensToSweep);
     }
 }
