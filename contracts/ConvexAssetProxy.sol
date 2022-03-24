@@ -230,7 +230,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
                 // Truncate to only get first 20 bytes
                 outputToken := shr(
                     96,
-                    mload(sub(add(add(path, 32), lengthOfPath), 20))
+                    mload(sub(add(add(path, 0x20), lengthOfPath), 0x14))
                 )
             }
 
