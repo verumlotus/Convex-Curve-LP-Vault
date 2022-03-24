@@ -421,4 +421,22 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Now stake the newly recieved underlying to the booster contract
         booster.deposit(pid, token.balanceOf(address(this)), true);
     }
+
+    /**
+     * @notice sweeps this contract to rescue any tokens that we do not handle
+     * Could deal with reward tokens we didn't account for, airdropped tokens, etc.
+     * @param tokensToRescue array of token address to transfer to destination
+     * @param destination the address to send all recovered tokens to
+     */
+    function sweep(address[] memory tokensToRescue, address destination)
+        external
+        onlyOwner
+    {
+        for (uint256 i = 0; i < tokensToRescue.length; i++) {
+            IERC20(tokensToRescue[i]).transfer(
+                destination,
+                IERC20(tokensToRescue[i]).balanceOf(address(this))
+            );
+        }
+    }
 }
