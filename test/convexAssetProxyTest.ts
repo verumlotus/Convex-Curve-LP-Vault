@@ -12,7 +12,7 @@ import { advanceBlock } from "./helpers/time";
 
 const { provider } = waffle;
 
-describe("Convex Asset Proxy", () => {
+describe.only("Convex Asset Proxy", () => {
   let users: { user: Signer; address: string }[];
   let fixture: ConvexFixtureInterface;
   // address of a large usdc holder to impersonate. 69 million usdc as of block 11860000
@@ -204,7 +204,7 @@ describe("Convex Asset Proxy", () => {
       );
     });
   });
-  describe("rewards", () => {
+  describe.only("rewards", () => {
     it("Harvests rewards correctly", async () => {
       await fixture.position
         .connect(users[0].user)

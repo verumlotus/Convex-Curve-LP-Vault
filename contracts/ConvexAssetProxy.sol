@@ -1,13 +1,13 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
 import "./WrappedConvexPosition.sol";
 import "./libraries/Authorizable.sol";
 import "./interfaces/external/IConvexBooster.sol";
 import "./interfaces/external/IConvexBaseRewardPool.sol";
 import "./interfaces/external/ISwapRouter.sol";
 import "./interfaces/external/I3CurvePoolDepositZap.sol";
+import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * @title Convex Asset Proxy
@@ -15,6 +15,7 @@ import "./interfaces/external/I3CurvePoolDepositZap.sol";
  * @notice Integrating with Curve is quite messy due to non-standard interfaces. Some of the logic below is specific to 3CRV-LUSD
  */
 contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
+    using SafeERC20 for IERC20;
     /************************************************
      *  STORAGE
      ***********************************************/

@@ -390,7 +390,7 @@ export async function loadConvexFixture(
   const curveMetaPool = "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA";
   const cvxLusd3CRV = "0xFB9B2f06FDb404Fd3E2278E9A9edc8f252F273d0";
   // Uniswap V3 router address
-  const routerAddress = "0x68b3465833fb72A70ecDF485E0e4C7bD8665Fc45";
+  const routerAddress = "0xE592427A0AEce92De3Edee1F18E0157C05861564";
   // Pool ID for LUSD-3CRV pool
   const pid = 33;
   // Keeper fee is 5%
