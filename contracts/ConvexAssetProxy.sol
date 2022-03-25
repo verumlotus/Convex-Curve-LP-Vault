@@ -163,8 +163,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // set keeper fee
         keeperFee = _constructorParams.keeperFee;
         // Add the swap paths
-        swapPaths.push(_crvSwapPath);
-        swapPaths.push(_cvxSwapPath);
+        _addSwapPath(_crvSwapPath);
+        _addSwapPath(_cvxSwapPath);
         // Approve the booster so it can pull tokens from this address
         IERC20(_token).safeApprove(
             address(_constructorParams.booster),
@@ -298,14 +298,22 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     }
 
     /**
+     * @notice Add a swap path
+     * @param path new path to use for swapping
+     */
+    function _addSwapPath(bytes memory path) internal {
+        // Push dummy path to expand array, then call setPath
+        swapPaths.push("");
+        _setSwapPath(swapPaths.length - 1, path);
+    }
+
+    /**
      * @notice Allows an authorized address to add a swap path
      * @param path new path to use for swapping
      * @dev the caller must be authorized
      */
-    function addSwapPath(bytes calldata path) external onlyAuthorized {
-        // Push dummy path to expand array, then call setPath
-        swapPaths.push("");
-        _setSwapPath(swapPaths.length - 1, path);
+    function addSwapPath(bytes memory path) external onlyAuthorized {
+        _addSwapPath(path);
     }
 
     /**
