@@ -1,4 +1,5 @@
 import { network } from "hardhat";
+import "dotenv/config";
 
 export const setBlock = async (block: number) => {
   await network.provider.request({
@@ -6,8 +7,7 @@ export const setBlock = async (block: number) => {
     params: [
       {
         forking: {
-          jsonRpcUrl:
-            "https://eth-mainnet.alchemyapi.io/v2/kwjMP-X-Vajdk1ItCfU-56Uaq1wwhamK",
+          jsonRpcUrl: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
           blockNumber: block,
         },
       },

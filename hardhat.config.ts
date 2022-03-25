@@ -6,7 +6,7 @@ import "hardhat-gas-reporter";
 import "solidity-coverage";
 import "hardhat-tracer";
 import "tsconfig-paths/register";
-
+import "dotenv/config";
 import { HardhatUserConfig } from "hardhat/config";
 
 const config: HardhatUserConfig = {
@@ -73,7 +73,7 @@ const config: HardhatUserConfig = {
   networks: {
     hardhat: {
       forking: {
-        url: "https://eth-mainnet.alchemyapi.io/v2/kwjMP-X-Vajdk1ItCfU-56Uaq1wwhamK",
+        url: `https://eth-mainnet.alchemyapi.io/v2/${process.env.ALCHEMY_KEY}`,
         blockNumber: 11853372,
       },
       accounts: {

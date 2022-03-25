@@ -9,6 +9,7 @@ import { createSnapshot, restoreSnapshot } from "./helpers/snapshots";
 import { impersonate, stopImpersonating } from "./helpers/impersonate";
 import { subError } from "./helpers/math";
 import { advanceBlock } from "./helpers/time";
+import "dotenv/config";
 
 const { provider } = waffle;
 
@@ -19,7 +20,7 @@ describe("Convex Asset Proxy", () => {
   const usdcWhaleAddress = "0xAe2D4617c862309A3d75A0fFB358c7a5009c673F";
   let user0LPStartingBalance: BigNumber;
   let user1LPStartingBalance: BigNumber;
-  const alchemy_key = "kwjMP-X-Vajdk1ItCfU-56Uaq1wwhamK";
+  const alchemy_key = process.env.ALCHEMY_KEY;
 
   before(async () => {
     // snapshot initial state
