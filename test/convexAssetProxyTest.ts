@@ -12,7 +12,7 @@ import { advanceBlock } from "./helpers/time";
 
 const { provider } = waffle;
 
-describe.only("Convex Asset Proxy", () => {
+describe("Convex Asset Proxy", () => {
   let users: { user: Signer; address: string }[];
   let fixture: ConvexFixtureInterface;
   // address of a large usdc holder to impersonate. 69 million usdc as of block 11860000
@@ -180,6 +180,10 @@ describe.only("Convex Asset Proxy", () => {
         .connect(users[0].user)
         .withdraw(users[0].address, shareBalance, 0);
       expect(await fixture.position.balanceOf(users[0].address)).to.equal(0);
+      // Should get all their LP tokens back
+      expect(await fixture.lpToken.balanceOf(users[0].address)).to.be.eq(
+        user0LPStartingBalance
+      );
     });
     it("fails to withdraw more shares than in balance", async () => {
       // withdraw 10 shares from user with balance 0
@@ -204,7 +208,7 @@ describe.only("Convex Asset Proxy", () => {
       );
     });
   });
-  describe.only("rewards", () => {
+  describe("rewards", () => {
     it("Harvests rewards correctly", async () => {
       await fixture.position
         .connect(users[0].user)
