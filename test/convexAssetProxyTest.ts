@@ -261,11 +261,22 @@ describe.only("Convex Asset Proxy", () => {
       );
     });
 
-    // it("fails for unauthorized user", async () => {
-    //   const tx = fixture.position
-    //     .connect(users[1].user)
-    //     .collectRewards(users[0].address);
-    //   await expect(tx).to.be.revertedWith("Sender not Authorized");
-    // });
+    it("fails for unauthorized user", async () => {
+      const crvHelper: SwapHelperStruct = {
+        token: fixture.crv.address,
+        deadline: ethers.constants.MaxUint256,
+        amountOutMinimum: 0,
+      };
+      const cvxHelper: SwapHelperStruct = {
+        token: fixture.cvx.address,
+        deadline: ethers.constants.MaxUint256,
+        amountOutMinimum: 0,
+      };
+
+      const tx = fixture.position
+        .connect(users[4].user)
+        .harvest([crvHelper, cvxHelper]);
+      await expect(tx).to.be.reverted;
+    });
   });
 });
