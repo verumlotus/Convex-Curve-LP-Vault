@@ -1,13 +1,18 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-import "./WrappedConvexPosition.sol";
+import { WrappedConvexPosition } from "./WrappedConvexPosition.sol";
 import "./libraries/Authorizable.sol";
 import "./interfaces/external/IConvexBooster.sol";
 import "./interfaces/external/IConvexBaseRewardPool.sol";
 import "./interfaces/external/ISwapRouter.sol";
 import "./interfaces/external/I3CurvePoolDepositZap.sol";
-import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+
+// A little hacky, but solidity complains a ton when trying to import different IERC20 interfaces
+interface IERC20Decimals {
+    function decimals() external view returns (uint8);
+}
 
 /**
  * @title Convex Asset Proxy
@@ -109,7 +114,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         address curveMetaPool;
         IConvexBooster booster;
         IConvexBaseRewardPool rewardsContract;
-        IERC20 convexDepositToken;
+        address convexDepositToken;
         ISwapRouter router;
         uint256 pid;
         uint256 keeperFee;
@@ -131,7 +136,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         constructorParams memory _constructorParams,
         bytes memory _crvSwapPath,
         bytes memory _cvxSwapPath,
-        IERC20 _token,
+        address _token,
         string memory _name,
         string memory _symbol,
         address _governance,
@@ -150,7 +155,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         // Set the rewards contract
         rewardsContract = _constructorParams.rewardsContract;
         // Set convexDepositToken
-        convexDepositToken = _constructorParams.convexDepositToken;
+        convexDepositToken = IERC20(_constructorParams.convexDepositToken);
         // Set uni v3 router address
         router = _constructorParams.router;
         // Set the pool id
@@ -161,12 +166,16 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         swapPaths.push(_crvSwapPath);
         swapPaths.push(_cvxSwapPath);
         // Approve the booster so it can pull tokens from this address
-        _token.approve(address(_constructorParams.booster), type(uint256).max);
+        IERC20(_token).approve(
+            address(_constructorParams.booster),
+            type(uint256).max
+        );
 
         // We want our shares decimals to be the same as the convex deposit token decimals
         require(
             decimals ==
-                IERC20(_constructorParams.convexDepositToken).decimals(),
+                IERC20Decimals(_constructorParams.convexDepositToken)
+                    .decimals(),
             "Inconsistent decimals"
         );
     }
@@ -376,8 +385,8 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         dai.approve(address(curveZap), type(uint256).max);
         usdc.approve(address(curveZap), 0);
         usdc.approve(address(curveZap), type(uint256).max);
-        usdt.approve(address(curveZap), 0);
-        usdt.approve(address(curveZap), type(uint256).max);
+        usdt.safeApprove(address(curveZap), 0);
+        usdt.safeApprove(address(curveZap), type(uint256).max);
     }
 
     /**

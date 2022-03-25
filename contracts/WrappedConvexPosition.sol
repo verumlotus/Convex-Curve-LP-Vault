@@ -1,10 +1,8 @@
 // SPDX-License-Identifier: Apache-2.0
 pragma solidity ^0.8.0;
 
-import "./interfaces/IERC20.sol";
 import "./interfaces/IWETH.sol";
 import "./interfaces/IWrappedPosition.sol";
-
 import "./libraries/ERC20PermitWithSupply.sol";
 
 /// @title Wrapped Convex Position Core
@@ -20,13 +18,13 @@ abstract contract WrappedConvexPosition is
     /// @param _name the name of this contract
     /// @param _symbol the symbol for this contract
     constructor(
-        IERC20 _token,
+        address _token,
         string memory _name,
         string memory _symbol
     ) ERC20Permit(_name, _symbol) {
-        token = _token;
+        token = IERC20(_token);
         // We set our decimals to be the same as the underlying
-        _setupDecimals(_token.decimals());
+        _setupDecimals(IERC20(_token).decimals());
     }
 
     /// We expect that the following logic will be present in an integration implementation
