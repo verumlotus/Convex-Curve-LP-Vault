@@ -9,7 +9,7 @@ import "./interfaces/external/ISwapRouter.sol";
 import "./interfaces/external/I3CurvePoolDepositZap.sol";
 import { SafeERC20, IERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
-// A little hacky, but solidity complains a ton when trying to import different IERC20 interfaces
+// A little hacky, but solidity complains when trying to import different IERC20 interfaces
 interface IERC20Decimals {
     function decimals() external view returns (uint8);
 }
@@ -33,7 +33,6 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /// @notice Contains multi-hop Uniswap V3 paths for trading CRV, CVX, & any other reward tokens
     /// index 0 is CRV path, index 1 is CVX path
-    /// the order of other reward tokens should match the order of the basePoolRewards.extraRewards array
     bytes[] public swapPaths;
 
     /************************************************
@@ -102,12 +101,12 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
     /**
      * curveZap - address of 3pool Deposit Zap
      * curveMetaPool - underlying curve pool
-     * _booster address of convex booster for underlying token
-     * _rewardsContract address of convex rewards contract for underlying token
-     * _convexDepositToken address of convex deposit token reciept minted by booster
-     * _router address of Uniswap v3 router
-     * _pid pool id of the underlying token (in the context of Convex's system)
-     * _keeperFee the fee that a keeper recieves from calling harvest()
+     * booster address of convex booster for underlying token
+     * rewardsContract address of convex rewards contract for underlying token
+     * convexDepositToken address of convex deposit token reciept minted by booster
+     * router address of Uniswap v3 router
+     * pid pool id of the underlying token (in the context of Convex's system)
+     * keeperFee the fee that a keeper recieves from calling harvest()
      */
     struct constructorParams {
         I3CurvePoolDepositZap curveZap;
@@ -386,7 +385,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
 
     /**
      * @notice approves curve zap (deposit) contract for all 3 stable coins
-     * @dev note that curve requires us to set approval to 0 & then the desired value
+     * @dev note that safeApprove requires us to set approval to 0 & then the desired value
      */
     function _approveAll() internal {
         dai.safeApprove(address(curveZap), 0);
