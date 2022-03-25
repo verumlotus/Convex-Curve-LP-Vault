@@ -166,7 +166,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         swapPaths.push(_crvSwapPath);
         swapPaths.push(_cvxSwapPath);
         // Approve the booster so it can pull tokens from this address
-        IERC20(_token).approve(
+        IERC20(_token).safeApprove(
             address(_constructorParams.booster),
             type(uint256).max
         );
@@ -381,10 +381,10 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
      * @dev note that curve requires us to set approval to 0 & then the desired value
      */
     function _approveAll() internal {
-        dai.approve(address(curveZap), 0);
-        dai.approve(address(curveZap), type(uint256).max);
-        usdc.approve(address(curveZap), 0);
-        usdc.approve(address(curveZap), type(uint256).max);
+        dai.safeApprove(address(curveZap), 0);
+        dai.safeApprove(address(curveZap), type(uint256).max);
+        usdc.safeApprove(address(curveZap), 0);
+        usdc.safeApprove(address(curveZap), type(uint256).max);
         usdt.safeApprove(address(curveZap), 0);
         usdt.safeApprove(address(curveZap), type(uint256).max);
     }
@@ -419,7 +419,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
             rewardTokenEarned = rewardToken.balanceOf(address(this));
             if (rewardTokenEarned > 0) {
                 // Approve router to use our rewardToken
-                rewardToken.approve(address(router), rewardTokenEarned);
+                rewardToken.safeApprove(address(router), rewardTokenEarned);
 
                 // Create params for the swap
                 currParamHelper = swapHelpers[i];
@@ -468,7 +468,7 @@ contract ConvexAssetProxy is WrappedConvexPosition, Authorizable {
         onlyOwner
     {
         for (uint256 i = 0; i < tokensToSweep.length; i++) {
-            IERC20(tokensToSweep[i]).transfer(
+            IERC20(tokensToSweep[i]).safeTransfer(
                 destination,
                 IERC20(tokensToSweep[i]).balanceOf(address(this))
             );
