@@ -12,7 +12,7 @@ import { advanceBlock } from "./helpers/time";
 
 const { provider } = waffle;
 
-describe.only("Convex Asset Proxy", () => {
+describe("Convex Asset Proxy", () => {
   let users: { user: Signer; address: string }[];
   let fixture: ConvexFixtureInterface;
   // address of a large usdc holder to impersonate. 69 million usdc as of block 11860000
@@ -204,16 +204,15 @@ describe.only("Convex Asset Proxy", () => {
       );
     });
   });
-  describe.only("rewards", () => {
+  describe("rewards", () => {
     it("Harvests rewards correctly", async () => {
       await fixture.position
         .connect(users[0].user)
         .deposit(users[0].address, user0LPStartingBalance);
 
       // Now simulate passage of time to accrue CRV, CVX rewards
-      // TODO: Change this back to 5760
-      const blocks_per_day = 1;
-      const days_to_simulate = 2;
+      const blocks_per_day = 5760;
+      const days_to_simulate = 3;
       for (let i = 0; i < blocks_per_day * days_to_simulate; i++) {
         await advanceBlock(provider);
       }

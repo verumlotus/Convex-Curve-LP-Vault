@@ -399,11 +399,11 @@ export async function loadConvexFixture(
   // Jump from CRV to WETH to USDC
   // Note: 10000 = 1% pool fee
   const crvSwapPath = ethers.utils.solidityPack(
-    ["address", "uint256", "address", "uint256", "address"],
+    ["address", "uint24", "address", "uint24", "address"],
     [crvAddress, 10000, wethAddress, 500, usdcAddress]
   );
   const cvxSwapPath = ethers.utils.solidityPack(
-    ["address", "uint256", "address", "uint256", "address"],
+    ["address", "uint24", "address", "uint24", "address"],
     [cvxAddress, 10000, wethAddress, 500, usdcAddress]
   );
 
