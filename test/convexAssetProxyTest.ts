@@ -222,8 +222,8 @@ describe.only("Convex Asset Proxy", () => {
 
       // Now check deposited token balance before & after for our wrapped position
       // Also check balance of LP token for harvester to ensure they received a bounty
-      const cvxDepositTokenBalanceBefore =
-        await fixture.convexDepositToken.balanceOf(fixture.position.address);
+      const stakedRewardTokenBalanceBefore =
+        await fixture.rewardsContract.balanceOf(fixture.position.address);
       const harvesterLpTokenBalanceBefore = await fixture.lpToken.balanceOf(
         users[4].address
       );
@@ -246,10 +246,10 @@ describe.only("Convex Asset Proxy", () => {
         .harvest([crvHelper, cvxHelper]);
 
       // Now we should have more convexDeposit Token
-      const cvxDepositTokenBalanceAfter =
-        await fixture.convexDepositToken.balanceOf(fixture.position.address);
-      expect(cvxDepositTokenBalanceAfter).to.be.gt(
-        cvxDepositTokenBalanceBefore
+      const stakedRewardTokenBalanceAfter =
+        await fixture.rewardsContract.balanceOf(fixture.position.address);
+      expect(stakedRewardTokenBalanceAfter).to.be.gt(
+        stakedRewardTokenBalanceBefore
       );
 
       // Harvester should have received a bounty
